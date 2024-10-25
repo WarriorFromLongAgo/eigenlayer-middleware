@@ -65,7 +65,13 @@ interface IRegistryCoordinator {
      * `maxOperatorCount` is the maximum number of operators that can be registered for the quorum,
      * `kickBIPsOfOperatorStake` is the basis points of a new operator needs to have of an operator they are trying to kick from the quorum,
      * and `kickBIPsOfTotalStake` is the basis points of the total stake of the quorum that an operator needs to be below to be kicked.
-     */ 
+     */
+    /**
+     * @notice 用于存储给定仲裁的操作员集参数的数据结构。具体来说，
+     * `maxOperatorCount` 是可以为仲裁注册的最大操作员数量，
+     * `kickBIPsOfOperatorStake` 是新操作员需要拥有的他们试图从仲裁中踢出的操作员的基点，
+     * 和 `kickBIPsOfTotalStake` 是操作员需要低于仲裁总权益的基点才能被踢出。
+     */
      struct OperatorSetParam {
         uint32 maxOperatorCount;
         uint16 kickBIPsOfOperatorStake;

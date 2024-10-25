@@ -10,6 +10,7 @@ import {BitmapUtils} from "./libraries/BitmapUtils.sol";
 
 /**
  * @title OperatorStateRetriever with view functions that allow to retrieve the state of an AVSs registry system.
+ *        OperatorStateRetriever 具有视图功能，允许检索 AVS 注册系统的状态。
  * @author Layr Labs Inc.
  */
 contract OperatorStateRetriever {

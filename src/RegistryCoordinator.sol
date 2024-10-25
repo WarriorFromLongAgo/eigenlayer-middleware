@@ -88,7 +88,7 @@ contract RegistryCoordinator is
         OperatorSetParam[] memory _operatorSetParams,
         uint96[] memory _minimumStakes,
         IStakeRegistry.StrategyParams[][] memory _strategyParams
-    ) external initializer {
+    ) external  {
         require(
             _operatorSetParams.length == _minimumStakes.length && _minimumStakes.length == _strategyParams.length,
             "RegistryCoordinator.initialize: input length mismatch"
@@ -150,6 +150,8 @@ contract RegistryCoordinator is
             operatorSignature: operatorSignature
         }).numOperatorsPerQuorum;
 
+        // 对于每个法定人数，验证新操作员数量不超过最大值
+        // （如果超过，则需要替换操作员 - 请参阅`registerOperatorWithChurn`）
         // For each quorum, validate that the new operator count does not exceed the maximum
         // (If it does, an operator needs to be replaced -- see `registerOperatorWithChurn`)
         for (uint256 i = 0; i < quorumNumbers.length; i++) {
@@ -382,6 +384,13 @@ contract RegistryCoordinator is
      * @param strategyParams a list of strategies and multipliers used by the StakeRegistry to
      * calculate an operator's stake weight for the quorum
      */
+    /**
+     * @notice 创建一个法定人数并在每个注册合同中对其进行初始化
+     * @param operatorSetParams 配置法定人数的最大操作员数量和流失参数
+     * @param minimumStake 设置操作员注册或保持注册所需的最低赌注
+     * @param strategiesParams StakeRegistry 使用的策略和乘数列表
+     * 计算操作员对法定人数的赌注权重
+     */
     function createQuorum(
         OperatorSetParam memory operatorSetParams,
         uint96 minimumStake,
@@ -451,6 +460,14 @@ contract RegistryCoordinator is
          * - the operator is not currently registered for any quorums we're registering for
          * Then, calculate the operator's new bitmap after registration
          */
+        /**
+          * 获取要注册的仲裁的位图和操作员的当前位图。验证：
+          * - 我们正在尝试注册至少 1 个仲裁
+          * - 我们正在注册的仲裁存在（根据 orderedBytesArrayToBitmap 中的 `quorumCount` 进行检查）
+          * - 操作员当前未注册任何我们正在注册的仲裁
+          * 然后，计算注册后操作员的新位图
+          */
+        // newBitmap 在这个上下文中是一个表示操作员（operator）注册的仲裁（quorum）集合的位图（bitmap）
         uint192 quorumsToAdd = uint192(BitmapUtils.orderedBytesArrayToBitmap(quorumNumbers, quorumCount));
         uint192 currentBitmap = _currentOperatorBitmap(operatorId);
         require(!quorumsToAdd.isEmpty(), "RegistryCoordinator._registerOperator: bitmap cannot be 0");
@@ -461,6 +478,10 @@ contract RegistryCoordinator is
          * Update operator's bitmap, socket, and status. Only update operatorInfo if needed:
          * if we're `REGISTERED`, the operatorId and status are already correct.
          */
+        /**
+          * 更新操作员的位图、套接字和状态。仅在需要时更新操作员信息：
+          * 如果我们已“注册”，则操作员 ID 和状态已经正确。
+          */
         _updateOperatorBitmap({
             operatorId: operatorId,
             newBitmap: newBitmap
@@ -672,15 +693,20 @@ contract RegistryCoordinator is
      * calculate an operator's stake weight for the quorum
      */
     function _createQuorum(
+    // 配置仲裁的操作员参数，如最大操作员数量和轮换规则。
         OperatorSetParam memory operatorSetParams,
+    // 设置操作员注册或保持注册所需的最低质押量。
         uint96 minimumStake,
+    // 用于计算操作员在该仲裁中质押权重的策略和乘数列表。
         IStakeRegistry.StrategyParams[] memory strategyParams
     ) internal {
         // Increment the total quorum count. Fails if we're already at the max
         uint8 prevQuorumCount = quorumCount;
+        // 检查是否达到最大仲裁数量限制
         require(prevQuorumCount < MAX_QUORUM_COUNT, "RegistryCoordinator.createQuorum: max quorums reached");
+        // 增加仲裁计数
         quorumCount = prevQuorumCount + 1;
-        
+        // 分配新仲裁编号，新仲裁的编号就是之前的仲裁总数
         // The previous count is the new quorum's number
         uint8 quorumNumber = prevQuorumCount;
 
@@ -729,6 +755,7 @@ contract RegistryCoordinator is
 
     /// @notice Get the most recent bitmap for the operator, returning an empty bitmap if
     /// the operator is not registered.
+    /// @notice 获取操作员的最新位图，如果操作员未注册，则返回一个空位图。
     function _currentOperatorBitmap(bytes32 operatorId) internal view returns (uint192) {
         uint256 historyLength = _operatorBitmapHistory[operatorId].length;
         if (historyLength == 0) {
@@ -764,6 +791,7 @@ contract RegistryCoordinator is
         );
     }
 
+    // 设置新仲裁的操作员参数，如最大操作员数量和轮换规则
     function _setOperatorSetParams(uint8 quorumNumber, OperatorSetParam memory operatorSetParams) internal {
         _quorumParams[quorumNumber] = operatorSetParams;
         emit OperatorSetParamsUpdated(quorumNumber, operatorSetParams);
